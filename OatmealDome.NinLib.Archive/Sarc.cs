@@ -1,10 +1,14 @@
 using System.Collections;
 using OatmealDome.BinaryData;
+using Syroot.NintenTools.Yaz0;
 
 namespace OatmealDome.NinLib.Archive;
 
 public sealed class Sarc : IEnumerable<KeyValuePair<string, byte[]>>
 {
+    private const uint _sarcMagic = 0x53415243; // "SARC"
+    private const uint _yaz0Magic = 0x59617A30; // "Yaz0"
+    
     private struct SfatNode
     {
         public uint Hash;
@@ -26,13 +30,45 @@ public sealed class Sarc : IEnumerable<KeyValuePair<string, byte[]>>
     {
         using (MemoryStream memoryStream = new MemoryStream(rawSarc))
         {
-            Read(memoryStream);
+            ReadAutoDetect(memoryStream);
         }
     }
 
     public Sarc(Stream stream)
     {
-        Read(stream);
+        ReadAutoDetect(stream);
+    }
+
+    private void ReadAutoDetect(Stream stream)
+    {
+        uint magic;
+        using (BinaryDataReader reader = new BinaryDataReader(stream, true))
+        {
+            reader.ByteOrder = ByteOrder.BigEndian;
+            
+            using (reader.TemporarySeek())
+            {
+                magic = reader.ReadUInt32();
+            }
+        }
+
+        if (magic == _yaz0Magic) // "Yaz0"
+        {
+            using MemoryStream decompressedStream = new MemoryStream();
+            Yaz0Compression.Decompress(stream, decompressedStream);
+
+            decompressedStream.Seek(0, SeekOrigin.Begin);
+            
+            Read(decompressedStream);
+        }
+        else if (magic == _sarcMagic) // "SARC"
+        {
+            Read(stream);
+        }
+        else
+        {
+            throw new ArchiveException("Not a SARC file");
+        }
     }
 
     private void Read(Stream stream)
@@ -44,11 +80,10 @@ public sealed class Sarc : IEnumerable<KeyValuePair<string, byte[]>>
         {
             // Set endianness to big by default
             reader.ByteOrder = ByteOrder.BigEndian;
-
-            // Verify the magic numbers
-            if (reader.ReadString(4) != "SARC")
+            
+            if (reader.ReadUInt32() != _sarcMagic)
             {
-                throw new ArchiveException("Not a SARC file");
+                throw new ArchiveException("Not a SARC file. Possible decompression error?");
             }
 
             // Skip the header length
