@@ -1,4 +1,5 @@
 using System.Collections;
+using ImpromptuNinjas.ZStd;
 using OatmealDome.BinaryData;
 using Syroot.NintenTools.Yaz0;
 
@@ -8,6 +9,7 @@ public sealed class Sarc : IEnumerable<KeyValuePair<string, byte[]>>
 {
     private const uint _sarcMagic = 0x53415243; // "SARC"
     private const uint _yaz0Magic = 0x59617A30; // "Yaz0"
+    private const uint _zstdMagic = 0x28B52FFD;
     
     private struct SfatNode
     {
@@ -59,6 +61,16 @@ public sealed class Sarc : IEnumerable<KeyValuePair<string, byte[]>>
 
             decompressedStream.Seek(0, SeekOrigin.Begin);
             
+            Read(decompressedStream);
+        }
+        else if (magic == _zstdMagic)
+        {
+            using ZStdDecompressStream decompressorStream = new ZStdDecompressStream(stream);
+            using MemoryStream decompressedStream = new MemoryStream();
+            
+            decompressorStream.CopyTo(decompressedStream);
+            decompressedStream.Seek(0, SeekOrigin.Begin);
+
             Read(decompressedStream);
         }
         else if (magic == _sarcMagic) // "SARC"
