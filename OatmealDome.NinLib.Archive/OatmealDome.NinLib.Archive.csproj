@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="ImpromptuNinjas.ZStd" Version="1.4.5.5" />
       <PackageReference Include="OatmealDome.BinaryData" Version="1.0.0" />
       <PackageReference Include="Syroot.NintenTools.Yaz0" Version="0.6.1" />
     </ItemGroup>
